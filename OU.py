@@ -10,7 +10,7 @@ X0_mean = 10
 X0_std = np.sqrt(10)
 time_steps = [10, 40, 60, 80, 100, 150, 200, 1000]
 num_samples = 1000
-dt = 0.05
+dt = 0.03
 
 # Initialize X_0
 X0 = np.random.normal(X0_mean, X0_std, num_samples)
@@ -44,7 +44,7 @@ for i, t in enumerate(time_steps):
     plt.hist(X[t], bins=20, density=True, alpha=0.6, color='g', label='Empirical')
 
     # Calculate marginal distribution parameters
-    mu_t, S_t = marginal_distribution_params(X0_mean, X0_std ** 2, sigma, theta, t)
+    mu_t, S_t = marginal_distribution_params(X0_mean, X0_std ** 2, sigma, theta, t*dt)
 
     # Plot marginal density function
     x = np.linspace(min(X[t]), max(X[t]), 100)
