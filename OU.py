@@ -1,61 +1,59 @@
-import jax
-import jax.numpy as jnp
+import numpy as np
 import matplotlib.pyplot as plt
-
-
-def simulate_ou_process(theta, mu, sigma, x0, dt, n_steps, key):
-    """
-    Simulate an Ornstein-Uhlenbeck process using Euler-Maruyama method.
-
-    Parameters:
-        theta (float): Mean reversion rate.
-        mu (float): Long-term mean.
-        sigma (float): Volatility.
-        x0 (float): Initial value of the process.
-        dt (float): Time step size.
-        n_steps (int): Number of steps to simulate.
-        key (jax.random.PRNGKey): JAX random key.
-
-    Returns:
-        jnp.ndarray: Simulated process values.
-    """
-    # Generate random normal increments
-    key, subkey = jax.random.split(key)
-    dW = jax.random.normal(subkey, shape=(n_steps,)) * jnp.sqrt(dt)
-
-    # Initialize the process
-    x = jnp.zeros(n_steps + 1)
-    x = x.at[0].set(x0)
-
-    # Simulate the process
-    for i in range(n_steps):
-        x = x.at[i + 1].set(x[i] + theta * (mu - x[i]) * dt + sigma * dW[i])
-
-    return x
-
+from scipy.stats import norm
 
 # Parameters
-theta = 0.5  # Mean reversion rate
-mu = 0.0  # Long-term mean
-sigma = 0.1  # Volatility
-x0 = 1.0  # Initial value
-dt = 0.01  # Time step
-n_steps = 5000  # Number of steps
-key = jax.random.PRNGKey(42)  # Random seed
+theta = 0.5
+mu = 0
+sigma = 1
+X0_mean = 10
+X0_std = np.sqrt(10)
+time_steps = [10, 40, 60, 80, 100, 150, 200, 1000]
+num_samples = 1000
+dt = 0.05
 
-# Simulate
-ou_process = simulate_ou_process(theta, mu, sigma, x0, dt, n_steps, key)
+# Initialize X_0
+X0 = np.random.normal(X0_mean, X0_std, num_samples)
 
-# Time axis
-time = jnp.linspace(0, n_steps * dt, n_steps + 1)
 
-# Plot
-plt.figure(figsize=(10, 6))
-plt.plot(time, ou_process, label="Ornstein-Uhlenbeck Process", color="blue")
-plt.title("Simulated Ornstein-Uhlenbeck Process")
-plt.xlabel("Time")
-plt.ylabel("Value")
-plt.axhline(mu, color="red", linestyle="--", label="Long-term Mean ($\mu$)")
-plt.legend()
-plt.grid(True)
+# Function to simulate OU process
+def simulate_ou_process(X0, theta, mu, sigma, dt, num_steps):
+    X = np.zeros((num_steps, num_samples))
+    X[0] = X0
+    for t in range(1, num_steps):
+        X[t] = X[t - 1] + theta * (mu - X[t - 1]) * dt + sigma * np.sqrt(dt) * np.random.normal(size=num_samples)
+    return X
+
+
+# Simulate the process
+num_steps = max(time_steps) + 1
+X = simulate_ou_process(X0, theta, mu, sigma, dt, num_steps)
+
+
+# Function to calculate marginal distribution parameters
+def marginal_distribution_params(mu, S, sigma, theta, t):
+    alpha_t = np.exp(-theta * t)
+    sigma_t = np.sqrt((1 - np.exp(-2 * theta * t)) / (2 * theta)) * sigma
+    return alpha_t * mu, alpha_t ** 2 * S + sigma_t ** 2
+
+
+# Plot the empirical distribution and marginal density function at specified time steps
+plt.figure(figsize=(3*len(time_steps), 5))
+for i, t in enumerate(time_steps):
+    plt.subplot(1, len(time_steps), i + 1)
+    plt.hist(X[t], bins=20, density=True, alpha=0.6, color='g', label='Empirical')
+
+    # Calculate marginal distribution parameters
+    mu_t, S_t = marginal_distribution_params(X0_mean, X0_std ** 2, sigma, theta, t)
+
+    # Plot marginal density function
+    x = np.linspace(min(X[t]), max(X[t]), 100)
+    plt.plot(x, norm.pdf(x, mu_t, np.sqrt(S_t)), 'r-', lw=2, label='Marginal Density')
+
+    plt.title(f'Distribution at t={t}')
+    plt.xlabel('X_t')
+    plt.ylabel('Density')
+    plt.legend()
+
+plt.tight_layout()
 plt.show()
